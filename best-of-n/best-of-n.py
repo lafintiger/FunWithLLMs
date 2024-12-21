@@ -436,4 +436,8 @@ def create_interface():
 
 if __name__ == "__main__":
     app = create_interface()
-    app.launch()
+    app.launch(
+        share=True,  # Create a public link
+        server_name="0.0.0.0",  # Allow access from other devices on the network
+        server_port=7860  # Specify a specific port
+    )
