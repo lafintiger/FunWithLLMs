@@ -1,0 +1,5 @@
+Future Features
+
+- iteration count status box
+- more fuzzing type controls I337 speak and other mods
+- better llm evaluator instructions
