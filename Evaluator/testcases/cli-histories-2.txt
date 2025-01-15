@@ -1,0 +1,205 @@
+
+
+###--- SESSION START ---###
+$ sudo nmcli con add con-name "LabNetwork" type ethernet ifname eth0 ipv4.method manual ipv4.address "192.168.5.10/24" ipv4.gateway "192.168.5.1"
+$ sudo nmcli con mod "LabNetwork" ipv4.dns "1.1.1.1 8.8.8.8"
+$ sudo nmcli con up "LabNetwork"
+Error: Connection activation failed: ip_config_start failed
+$ sudo nmcli con mod "LabNetwork" ipv4.addresses "192.168.5.20/24"
+$ sudo nmcli con up "LabNetwork"
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/6)
+$ ip addr show dev eth0
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    inet 192.168.5.20/24 brd 192.168.5.255 scope global eth0
+       valid_lft forever preferred_lft forever
+$ ping -c 4 google.com
+PING google.com (142.250.64.78) 56(84) bytes of data.
+64 bytes from 142.250.64.78: icmp_seq=1 ttl=118 time=12.7 ms
+
+
+###--- SESSION END ---###
+
+
+###--- SESSION START ---###
+$ sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+$ sudo iptables -A OUTPUT -p tcp --sport 22 -j ACCEPT
+$ sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+$ sudo service iptables save
+Redirecting to /bin/systemctl save iptables.service
+Failed to execute operation: No such file or directory
+$ sudo systemctl enable --now iptables
+$ sudo systemctl restart iptables
+$ sudo iptables -L
+Chain INPUT (policy ACCEPT)
+target     prot opt source               destination         
+ACCEPT     tcp  --  anywhere             anywhere             tcp dpt:ssh
+ACCEPT     tcp  --  anywhere             anywhere             tcp dpt:http
+$ ping 8.8.8.8
+connect: Network is unreachable
+$ sudo ip route add default via 192.168.1.1
+$ ping 8.8.8.8
+64 bytes from 8.8.8.8: icmp_seq=1 ttl=118 time=17.3 ms
+
+
+###--- SESSION END ---###
+
+###--- SESSION START ---###
+$ sudo nmcli con mod "WorkConnection" ipv4.dns "8.8.8.8,8.8.4.4"
+$ sudo nmcli con up "WorkConnection"
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/7)
+$ cat /etc/resolv.conf
+nameserver 127.0.0.1
+$ sudo systemctl restart NetworkManager
+$ cat /etc/resolv.conf
+nameserver 127.0.0.1
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+$ ping google.com
+ping: google.com: Temporary failure in name resolution
+$ sudo nmcli con mod "WorkConnection" ipv4.dns "1.1.1.1,1.0.0.1"
+$ sudo nmcli con up "WorkConnection"
+$ cat /etc/resolv.conf
+nameserver 1.1.1.1
+nameserver 1.0.0.1
+$ ping google.com
+PING google.com (142.250.64.78) 56(84) bytes of data.
+64 bytes from 142.250.64.78: icmp_seq=1 ttl=118 time=14.5 ms
+
+
+###--- SESSION END ---###
+
+###--- SESSION START ---###
+$ ip addr add 10.0.0.100/24 dev eth0
+$ ip route add default via 10.0.0.1 dev eth0
+RTNETLINK answers: File exists
+$ ip addr show dev eth0
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    inet 10.0.0.100/24 brd 10.0.0.255 scope global eth0
+       valid_lft forever preferred_lft forever
+$ ping 8.8.8.8
+connect: Network is unreachable
+$ sudo nmcli dev disconnect eth0
+$ sudo nmcli dev connect eth0
+Device 'eth0' successfully activated with 'default' profile
+$ ping 8.8.8.8
+PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
+64 bytes from 8.8.8.8: icmp_seq=1 ttl=118 time=11.3 ms
+
+
+###--- SESSION END ---###
+
+###--- SESSION START ---###
+$ sudo nmcli con mod "ServerNetwork" ipv4.addresses "192.168.10.5/24" ipv4.gateway "192.168.10.1" ipv6.addresses "2001:db8::1/64"
+$ sudo nmcli con mod "ServerNetwork" ipv4.method manual ipv6.method manual
+$ sudo nmcli con mod "ServerNetwork" ipv4.dns "8.8.8.8,8.8.4.4" ipv6.dns "2001:4860:4860::8888"
+$ sudo nmcli con up "ServerNetwork"
+Connection successfully activated
+$ ping -6 google.com
+PING google.com (2607:f8b0:4009:810::200e) 56 data bytes
+64 bytes from 2607:f8b0:4009:810::200e: icmp_seq=1 ttl=118 time=23.5 ms
+$ ping -4 google.com
+PING google.com (142.250.64.78) 56(84) bytes of data.
+64 bytes from 142.250.64.78: icmp_seq=1 ttl=118 time=14.6 ms
+
+
+###--- SESSION END ---###
+
+###--- SESSION START ---###
+$ sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+$ sudo iptables -A INPUT -p tcp --dport 80 -j ACCPET
+iptables v1.8.7 (nf_tables): unknown option "ACCPET"
+$ sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+$ sudo iptables -L
+Chain INPUT (policy ACCEPT)
+target     prot opt source               destination         
+ACCEPT     tcp  --  anywhere             anywhere             tcp dpt:http
+$ sudo service iptables save
+Saving firewall rules to /etc/sysconfig/iptables: [OK]
+$ sudo systemctl restart iptables
+$ ping 8.8.8.8
+64 bytes from 8.8.8.8: icmp_seq=1 ttl=118 time=15.4 ms
+
+
+###--- SESSION END ---###
+
+###--- SESSION START ---###
+$ sudo nmcli con add type bridge ifname br0 con-name br0 ipv4.method manual ipv4.addresses "192.168.15.1/24"
+$ sudo nmcli con add type bridge-slave ifname eth0 master br0
+$ sudo nmcli con up br0
+Error: Connection activation failed: ip_config_start failed
+$ sudo nmcli con mod br0 ipv4.addresses "192.168.15.2/24"
+$ sudo nmcli con up br0
+Connection successfully activated
+$ ip a show br0
+5: br0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    inet 192.168.15.2/24 brd 192.168.15.255 scope global br0
+       valid_lft forever preferred_lft forever
+
+
+###--- SESSION END ---###
+
+###--- SESSION START ---###
+$ sudo nmcli con mod "DynamicNetwork" ipv4.method auto
+$ sudo nmcli con up "DynamicNetwork"
+Connection successfully activated
+$ ip addr show eth0
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    inet 192.168.0.150/24 brd 192.168.0.255 scope global eth0
+       valid_lft forever preferred_lft forever
+$ ping google.com
+PING google.com (142.250.64.78) 56(84) bytes of data.
+64 bytes from 142.250.64.78: icmp_seq=1 ttl=118 time=10.7 ms
+
+
+###--- SESSION END ---###
+
+###--- SESSION START ---###
+$ sudo nmcli con mod "StaticNetwork" ipv4.addresses "192.168.100.5/24" ipv4.gateway "192.168.100.1"
+$ sudo nmcli con mod "StaticNetwork" ipv4.dns "8.8.8.8"
+$ sudo nmcli con up "StaticNetwork"
+Connection successfully activated
+$ ping 8.8.8.8
+connect: Network is unreachable
+$ ip route add default via 192.168.100.1
+$ ping 8.8.8.8
+PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
+64 bytes from 8.8.8.8: icmp_seq=1 ttl=118 time=18.6 ms
+
+
+###--- SESSION END ---###
+
+###--- SESSION START ---###
+$ sudo nmcli con mod "StaticNetwork" ipv4.addresses "192.168.100.5/24" ipv4.gateway "192.168.100.1"
+$ sudo nmcli con mod "StaticNetwork" ipv4.dns "8.8.8.8"
+$ sudo nmcli con up "StaticNetwork"
+Connection successfully activated
+$ ping 8.8.8.8
+connect: Network is unreachable
+$ ip route add default via 192.168.100.1
+$ ping 8.8.8.8
+PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
+64 bytes from 8.8.8.8: icmp_seq=1 ttl=118 time=18.6 ms
+
+
+###--- SESSION END ---###
+
+
+###--- SESSION START ---###
+$ sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+$ sudo iptables -A FORWARD -i eth1 -o eth0 -j ACCEPT
+$ sudo iptables -A FORWARD -i eth0 -o eth1 -m state --state RELATED,ESTABLISHED -j ACCEPT
+$ sudo service iptables save
+Saving firewall rules to /etc/sysconfig/iptables: [OK]
+$ sudo iptables -L -t nat
+Chain POSTROUTING (policy ACCEPT)
+target     prot opt source               destination         
+MASQUERADE all  --  anywhere             anywhere
+$ sudo iptables -L FORWARD
+Chain FORWARD (policy ACCEPT)
+target     prot opt source               destination         
+ACCEPT     all  --  anywhere             anywhere
+
+
+
+###--- SESSION END ---###
+
