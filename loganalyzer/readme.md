@@ -1,8 +1,96 @@
 # Advanced Network Traffic and Log Analyzer
 
+Part of the [FunWithLLMs](https://github.com/lafintiger/FunWithLLMs) project, this tool is located in the [loganalyzer](https://github.com/lafintiger/FunWithLLMs/tree/main/loganalyzer) directory.
+
+## Repository Structure
+
+```
+FunWithLLMs/
+└── loganalyzer/
+    ├── simpleanalyzer.py     # Basic version with LLM analysis only
+    ├── loganalyzer.py        # Enhanced version with basic features
+    ├── advancedanalyzer.py   # Full-featured version with all capabilities
+    ├── example.pcap          # Sample PCAP file for testing
+    ├── nitroba.pcap          # Additional sample PCAP file
+    ├── requirements.txt      # Python dependencies
+    └── README.md             # This documentation
+```
+
+## Analyzer Versions
+
+### Simple Analyzer (simpleanalyzer.py)
+- Basic PCAP and log file analysis
+- LLM integration through Ollama
+- Simple text output
+- Ideal for quick analysis tasks
+
+### Log Analyzer (loganalyzer.py)
+- Enhanced version with basic features
+- Improved PCAP parsing
+- Pattern recognition
+- Basic visualizations
+- Performance optimizations
+- Streaming processing
+
+### Advanced Analyzer (advancedanalyzer.py)
+- Full-featured version with all capabilities
+- Batch processing
+- Advanced visualizations
+- Network flow analysis
+- Interactive dashboard
+- Comprehensive filtering options
+- Statistical analysis
+- Pattern recognition
+- Memory optimization
+- Progress tracking
+
 A sophisticated analysis tool that combines network packet analysis, log parsing, and Large Language Model (LLM) capabilities through Ollama integration. This tool provides an interactive web interface for analyzing PCAP files and logs, with support for both single-file and batch processing.
 
-## Table of Contents
+## Quick Start Guide
+
+### Installation for All Versions
+```bash
+git clone https://github.com/lafintiger/FunWithLLMs.git
+cd FunWithLLMs/loganalyzer
+pip install -r requirements.txt
+```
+
+### Using Simple Analyzer
+Best for quick LLM analysis of logs:
+```bash
+python simpleanalyzer.py
+```
+- Upload your PCAP or log file
+- Select an Ollama model
+- Get LLM-based analysis
+
+### Using Log Analyzer
+Better for detailed analysis with basic visualizations:
+```bash
+python loganalyzer.py
+```
+- Upload PCAP or log file
+- Choose analysis type
+- View basic visualizations and LLM analysis
+- Download analysis report
+
+### Using Advanced Analyzer
+Full-featured analysis with all capabilities:
+```bash
+python advancedanalyzer.py
+```
+- Choose single file or batch analysis
+- Configure filters and options
+- View interactive dashboard
+- Generate comprehensive reports
+- Access advanced visualizations
+
+### Example Files
+The repository includes two sample PCAP files for testing:
+- `example.pcap`: Basic network traffic sample
+- `nitroba.pcap`: More complex network capture
+
+Test any analyzer version with these files to explore the features.
 - [Features](#features)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
@@ -59,8 +147,8 @@ A sophisticated analysis tool that combines network packet analysis, log parsing
 
 1. Clone the repository:
 ```bash
-git clone [repository-url]
-cd advanced-log-analyzer
+git clone https://github.com/lafintiger/FunWithLLMs.git
+cd FunWithLLMs/loganalyzer
 ```
 
 2. Create and activate a virtual environment (recommended):
