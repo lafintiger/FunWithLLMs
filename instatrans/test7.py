@@ -371,6 +371,32 @@ def create_ui() -> gr.Blocks:
     available_models = get_available_models()
     logger.info(f"Available Ollama models: {available_models}")
     
+    def get_latest_transcript():
+        """Find the most recently created transcript file"""
+        transcript_files = [f for f in os.listdir(processor.output_dir) if f.endswith('_transcript.txt')]
+        if not transcript_files:
+            return None, None
+        
+        # Get the most recently created transcript file
+        latest_transcript = max(
+            [os.path.join(processor.output_dir, f) for f in transcript_files],
+            key=os.path.getctime
+        )
+        return latest_transcript, os.path.basename(latest_transcript)
+
+    def get_latest_summary():
+        """Find the most recently created summary file"""
+        summary_files = [f for f in os.listdir(processor.output_dir) if f.endswith('_summary.txt')]
+        if not summary_files:
+            return None, None
+        
+        # Get the most recently created summary file
+        latest_summary = max(
+            [os.path.join(processor.output_dir, f) for f in summary_files],
+            key=os.path.getctime
+        )
+        return latest_summary, os.path.basename(latest_summary)
+
     with gr.Blocks(title="Instagram Video Processor") as app:
         gr.Markdown("# Instagram Video Processor")
         
@@ -439,6 +465,17 @@ def create_ui() -> gr.Blocks:
                     interactive=False,
                     lines=5
                 )
+                
+                # Download buttons for transcript and summary
+                with gr.Row():
+                    transcript_download = gr.File(
+                        label="Download Transcript",
+                        interactive=False
+                    )
+                    summary_download = gr.File(
+                        label="Download Summary",
+                        interactive=False
+                    )
             
             # Event handlers
             download_btn.click(
@@ -450,14 +487,28 @@ def create_ui() -> gr.Blocks:
             transcribe_btn.click(
                 fn=processor.transcribe_videos,
                 inputs=[whisper_path, downloaded_files],
-                outputs=transcript_output
+                outputs=[transcript_output, transcript_download]
             )
+            
+            def update_transcript_download():
+                """Prepare the latest transcript for download"""
+                latest_transcript, filename = get_latest_transcript()
+                if latest_transcript:
+                    return gr.File(value=latest_transcript, visible=True)
+                return gr.File(value=None, visible=False)
             
             summarize_btn.click(
                 fn=processor.summarize_transcript,
                 inputs=[transcript_output, model_dropdown],
-                outputs=summary_output
+                outputs=[summary_output, summary_download]
             )
+            
+            def update_summary_download():
+                """Prepare the latest summary for download"""
+                latest_summary, filename = get_latest_summary()
+                if latest_summary:
+                    return gr.File(value=latest_summary, visible=True)
+                return gr.File(value=None, visible=False)
             
             clear_btn.click(
                 fn=processor.clear_state,
@@ -466,7 +517,9 @@ def create_ui() -> gr.Blocks:
                     urls,
                     transcript_output,
                     summary_output,
-                    downloaded_files
+                    downloaded_files,
+                    transcript_download,
+                    summary_download
                 ]
             )
         
