@@ -1,0 +1,21 @@
+# Core Dependencies
+gradio>=3.50.0
+instaloader>=4.9.6
+langchain-community>=0.0.20
+requests>=2.31.0
+
+# AI and Transcription
+ollama>=0.1.0
+transformers>=4.35.0
+faster-whisper>=3.0.0
+
+# Development and Utilities
+python-dotenv>=1.0.0
+logging>=0.5.1.2
+
+# Optional: For enhanced functionality
+numpy>=1.22.0
+pandas>=2.0.0
+
+# Compatibility and Extras
+typing-extensions>=4.8.0
