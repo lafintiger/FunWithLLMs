@@ -1,17 +1,4 @@
 import gradio as gr
-
-def get_available_models():
-    """Get list of available models from Ollama"""
-    try:
-        response = requests.get('http://localhost:11434/api/tags')
-        if response.status_code == 200:
-            models = [model['name'] for model in response.json()['models']]
-            return models if models else ["No models found"]
-        return ["Error: Could not fetch models"]
-    except requests.exceptions.ConnectionError:
-        return ["Error: Could not connect to Ollama"]
-    except Exception as e:
-        return [f"Error: {str(e)}"]
 import requests
 import json
 from datetime import datetime
@@ -28,6 +15,19 @@ import numpy as np
 from pathlib import Path
 import networkx as nx
 from io import BytesIO
+
+def get_available_models():
+    """Get list of available models from Ollama"""
+    try:
+        response = requests.get('http://localhost:11434/api/tags')
+        if response.status_code == 200:
+            models = [model['name'] for model in response.json()['models']]
+            return models if models else ["No models found"]
+        return ["Error: Could not fetch models"]
+    except requests.exceptions.ConnectionError:
+        return ["Error: Could not connect to Ollama"]
+    except Exception as e:
+        return [f"Error: {str(e)}"]
 
 class PacketFilter:
     """Handles packet filtering operations"""
@@ -53,7 +53,7 @@ class PacketAnalyzer:
         return Counter(protocols)
     
     @staticmethod
-    def get_port_distribution(packets: List[Dict]) -> Dict[str, int]:
+    def get_port_distribution(packets: List[Dict]) -> List[tuple]:
         ports = []
         for p in packets:
             if 'src_port' in p:
@@ -97,8 +97,9 @@ class VisualAnalytics:
     def create_traffic_flow_graph(connections: List[tuple]) -> str:
         G = nx.DiGraph()
         
-        # Add edges with weights
-        for (src, dst), weight in connections:
+        # Convert connections from Counter output to edge list with weights
+        for connection, weight in connections:
+            src, dst = connection  # Unpack the connection tuple
             G.add_edge(src, dst, weight=weight)
         
         plt.figure(figsize=(12, 8))
@@ -124,7 +125,7 @@ class VisualAnalytics:
         plt.savefig(temp_file)
         plt.close()
         return temp_file
-
+    
 def parse_pcap(pcap_file: str, max_packets: int = 10000, filters: Dict = None) -> List[Dict]:
     """
     Enhanced PCAP parser with filtering capabilities
@@ -179,45 +180,25 @@ def parse_pcap(pcap_file: str, max_packets: int = 10000, filters: Dict = None) -
         
     except Exception as e:
         raise Exception(f"Error parsing PCAP file: {str(e)}")
+        
+    except Exception as e:
+        raise Exception(f"Error parsing PCAP file: {str(e)}")
 
-def analyze_files(files: List[str], selected_model: str, analysis_type: str, 
-                specific_focus: str, filters: Dict, max_packets: int = 10000) -> Dict:
-    """
-    Batch analysis of multiple files
-    """
-    results = {}
+def create_analysis_prompt(file_content: str, analysis_type: str, specific_focus: str) -> str:
+    """Create a prompt for the LLM analysis"""
+    prompt = f"""Analyze the following network traffic data with a focus on {analysis_type}.
     
-    for file_path in files:
-        try:
-            # Process each file
-            if file_path.endswith('.pcap'):
-                parsed_data = parse_pcap(file_path, max_packets, filters)
-                
-                # Perform analysis
-                analyzer = PacketAnalyzer()
-                protocol_dist = analyzer.get_protocol_distribution(parsed_data)
-                port_dist = analyzer.get_port_distribution(parsed_data)
-                connections = analyzer.get_ip_connections(parsed_data)
-                traffic_volume = analyzer.calculate_traffic_volume(parsed_data)
-                
-                # Create visualizations
-                viz = VisualAnalytics()
-                protocol_chart = viz.create_protocol_pie_chart(protocol_dist)
-                port_chart = viz.create_port_distribution_chart(port_dist)
-                traffic_graph = viz.create_traffic_flow_graph(connections)
-                
-                results[file_path] = {
-                    'protocol_distribution': protocol_dist,
-                    'port_distribution': port_dist,
-                    'connections': connections,
-                    'traffic_volume': traffic_volume,
-                    'visualizations': [protocol_chart, port_chart, traffic_graph]
-                }
-            
-        except Exception as e:
-            results[file_path] = {'error': str(e)}
-    
-    return results
+Additional focus areas: {specific_focus}
+
+Data:
+{file_content}
+
+Please provide:
+1. Overview of the traffic patterns
+2. Potential security concerns
+3. Recommendations for improvement
+"""
+    return prompt
 
 def analyze_file(file, selected_model, analysis_type, specific_focus, filters):
     """
@@ -254,14 +235,17 @@ def analyze_file(file, selected_model, analysis_type, specific_focus, filters):
                 viz.create_traffic_flow_graph(connections)
             ]
             
-            # Convert to JSON for LLM analysis
-            file_content = json.dumps({
+            # Convert to JSON-serializable format
+            for_json = {
                 'parsed_data': parsed_data[:100],  # First 100 packets for LLM
                 'protocol_distribution': protocol_dist,
                 'port_distribution': dict(port_dist),
-                'top_connections': dict(connections),
+                'top_connections': [{'src': src, 'dst': dst, 'count': count} 
+                                  for (src, dst), count in connections],
                 'traffic_volume': traffic_volume
-            }, indent=2)
+            }
+            
+            file_content = json.dumps(for_json, indent=2)
             
         else:
             with open(file.name, 'r') as f:
@@ -306,7 +290,7 @@ def analyze_file(file, selected_model, analysis_type, specific_focus, filters):
                 f.write("-" * 30 + "\n")
                 f.write(f"Protocol Distribution: {protocol_dist}\n")
                 f.write(f"Top Ports: {dict(port_dist)}\n")
-                f.write(f"Top Connections: {dict(connections)}\n\n")
+                f.write(f"Top Connections: {[f'{src}->{dst}: {count}' for (src, dst), count in connections]}\n\n")
             
             f.write("LLM Analysis Results:\n")
             f.write("-" * 30 + "\n")
@@ -319,61 +303,6 @@ def analyze_file(file, selected_model, analysis_type, specific_focus, filters):
         with open(output_file, 'w') as f:
             f.write(f"Error: {error_msg}")
         return error_msg, output_file, []
-
-def create_dashboard(analysis_results: Dict) -> str:
-    """
-    Create an HTML dashboard from analysis results
-    """
-    dashboard = """
-    <html>
-    <head>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .visualization { margin: 20px 0; }
-            .stats { margin: 20px 0; }
-            .chart { max-width: 100%; height: auto; }
-        </style>
-    </head>
-    <body>
-        <h1>Traffic Analysis Dashboard</h1>
-    """
-    
-    for file_path, results in analysis_results.items():
-        if 'error' in results:
-            dashboard += f"<h2>Error analyzing {file_path}: {results['error']}</h2>"
-            continue
-            
-        dashboard += f"<h2>Analysis Results for {file_path}</h2>"
-        
-        # Add visualizations
-        dashboard += "<div class='visualization'>"
-        for viz_path in results['visualizations']:
-            dashboard += f"<img src='{viz_path}' class='chart'><br>"
-        dashboard += "</div>"
-        
-        # Add statistics
-        dashboard += "<div class='stats'>"
-        dashboard += "<h3>Protocol Distribution</h3>"
-        for protocol, count in results['protocol_distribution'].items():
-            dashboard += f"<p>{protocol}: {count}</p>"
-        
-        dashboard += "<h3>Top Ports</h3>"
-        for port, count in results['port_distribution']:
-            dashboard += f"<p>{port}: {count}</p>"
-        
-        dashboard += "<h3>Top IP Connections</h3>"
-        for (src, dst), count in results['connections']:
-            dashboard += f"<p>{src} → {dst}: {count} packets</p>"
-        dashboard += "</div>"
-    
-    dashboard += "</body></html>"
-    
-    # Save dashboard to file
-    dashboard_path = os.path.join(tempfile.mkdtemp(), 'dashboard.html')
-    with open(dashboard_path, 'w') as f:
-        f.write(dashboard)
-    
-    return dashboard_path
 
 def create_interface():
     with gr.Blocks(title="Enhanced Cyber Threat Analysis Interface") as interface:
@@ -421,25 +350,13 @@ def create_interface():
                         file_output = gr.File(label="Download Analysis Report")
                         gallery = gr.Gallery(label="Visualizations")
             
-            with gr.TabItem("Batch Analysis"):
-                with gr.Row():
-                    with gr.Column():
-                        files_input = gr.File(label="Upload Multiple Files", file_count="multiple")
-                        batch_options = gr.CheckboxGroup(
-                            choices=["Generate Dashboard", "Create Individual Reports"],
-                            label="Batch Processing Options"
-                        )
-                        batch_analyze_button = gr.Button("Analyze All Files")
-                    
-                    with gr.Column():
-                        batch_output = gr.HTML(label="Batch Analysis Results")
-                        dashboard_output = gr.File(label="Download Dashboard")
-        
         # Single file analysis event
         analyze_button.click(
             fn=lambda f, m, t, p, pf, pof, ipf, mp, sf: analyze_file(
                 f, m, t, sf, 
-                {'protocol': pf, 'port': pof, 'ip': ipf, 'max_packets': mp}
+                {'protocol': pf,
+                 
+                 'port': pof, 'ip': ipf, 'max_packets': mp}
             ),
             inputs=[
                 file_input, model_dropdown, analysis_type, specific_focus,
@@ -448,21 +365,24 @@ def create_interface():
             ],
             outputs=[output_text, file_output, gallery]
         )
-        
-        # Batch analysis event
-        batch_analyze_button.click(
-            fn=lambda files, opts: analyze_files(
-                [f.name for f in files],
-                get_available_models()[0],
-                'security_audit',
-                '',
-                {}
-            ),
-            inputs=[files_input, batch_options],
-            outputs=[batch_output, dashboard_output]
-        )
     
     return interface
+
+def create_analysis_prompt(file_content: str, analysis_type: str, specific_focus: str) -> str:
+    """Create a prompt for the LLM analysis"""
+    prompt = f"""Analyze the following network traffic data with a focus on {analysis_type}.
+    
+Additional focus areas: {specific_focus}
+
+Data:
+{file_content}
+
+Please provide:
+1. Overview of the traffic patterns
+2. Potential security concerns
+3. Recommendations for improvement
+"""
+    return prompt
 
 if __name__ == "__main__":
     interface = create_interface()
